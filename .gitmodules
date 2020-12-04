@@ -1,0 +1,6 @@
+[submodule "SpotifyClient"]
+	path = SpotifyClient
+	url = https://github.com/argonism/SpotifyAPI.git
+[submodule "SteppingMotor"]
+	path = SteppingMotor
+	url = https://github.com/argonism/SteppingMotor.git
