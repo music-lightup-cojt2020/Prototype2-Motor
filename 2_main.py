@@ -19,11 +19,11 @@ class Spotify(threading.Thread):
   def __init__(self):
     threading.Thread.__init__(self)
     self.client = spotify_client.SpotifyClient()
+    self.interval = 3
     self.updated = False
     self.bpm = 120
     self.beats = None
     self.is_playing = False
-    self.interval = 3
     self.track_id = ""
     self.timestamp = 0
     self.progress_ms = 0
@@ -44,17 +44,14 @@ class Spotify(threading.Thread):
   def fetch(self):
     new_state = self.client.currently_playing()
 
+    if not new_state:
+      return
+
     # トラックの変更を拾う
     if not self.track_id == new_state["item"]["id"]:
       print("---------- track_changed ----------")
       print("track name:", new_state["item"]["name"])
       self.load_beats(new_state["item"]["id"])
-      self.set_state(new_state)
-
-    # 停止/再生の状態が変化したときのみ、状態をセットする。
-    if new_state == None \
-        or self.is_playing == new_state["is_playing"]:
-      return
 
     self.set_state(new_state)
     
@@ -90,6 +87,7 @@ class Prototype2():
     self.elapsed_time = 0.0
     self.last_beat_index = 0
     self.progress_ms = 0.0
+    self.base_time = int(time.time() * 1000)
 
   def _get_latest_beat_index(self, progress_ms):
     sec = progress_ms / 1000
@@ -112,12 +110,12 @@ class Prototype2():
         self.progress_ms = self.spotify.progress_ms
         self.spotify.updated = False
         self.elapsed_time = 0
+        self.base_time = int(time.time() * 1000)
 
       if not self.is_playing:
           continue
 
-      self.elapsed_time =  int(time.time() * 1000) - self.timestamp
-      # print(self.elapsed_time / 1000)
+      self.elapsed_time =  int(time.time() * 1000) - self.base_time
       beat_index = self._get_latest_beat_index(self.elapsed_time + self.progress_ms)
       if self.last_beat_index != beat_index:
           self.motor.reverse = not self.motor.reverse
