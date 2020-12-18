@@ -30,12 +30,18 @@ class LedTape():
     def cleanup(self):
         self.colorWipe(self.strip, Color(0, 0, 0))
 
+    def update(self, new_state):
+        pass  # このクラスで必要なパラメタをセット
+
 
 class Motor():
     motor_pins = [26, 19, 22, 27]
 
     def __init__(self):
         pass
+
+    def update(self, new_state):
+        pass  # このクラスで必要なパラメタをセット
 
 
 class Spotify():
@@ -68,7 +74,12 @@ class Spotify():
         self.is_playing = new_state["is_playing"]
         self.track_id = new_state["item"]["id"]
 
+    def update(self, new_state):
+        pass  # このクラスで必要なパラメタをセット
 
+
+# spotifyクラスのメソッドを用いて状態を取得
+# 変更があれば各種クラスのupdate()で状態を更新
 class Root():
     def __init__(self):
         self.spotify = Spotify()
@@ -88,7 +99,7 @@ def main():
     try:
         loop.run_until_complete(root.run())
     except KeyboardInterrupt:
-        print('keybord interrupt')
+        print('keybord interrupt')  # ここがしっかり呼ばれることを確認
         root.ledtape.cleanup()
         loop.close()
 
