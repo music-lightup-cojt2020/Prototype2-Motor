@@ -5,12 +5,6 @@ from rpi_ws281x import PixelStrip, Color
 import RPi.GPIO as GPIO
 
 
-async def sleeping(sec):
-    while True:
-        await asyncio.sleep(1)
-        print('wait 1 sec')
-
-
 class LedTape():
     LED_COUNT = 8        # Number of LED pixels.
     LED_PIN = 18
@@ -79,7 +73,7 @@ class Root():
     def __init__(self):
         self.spotify = Spotify()
         self.ledtape = LedTape()
-        self.moter = Moter()
+        self.moter = Motor()
 
     async def run(self):
         await self.spotify.run()
@@ -88,7 +82,6 @@ class Root():
 def main():
     # eventloopの作成
     loop = asyncio.get_event_loop()
-
     root = Root()
 
     # 無限ループ
