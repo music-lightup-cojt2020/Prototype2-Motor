@@ -16,12 +16,14 @@ class LedTape(threading.Thread):
     LED_INVERT = False
     LED_CHANNEL = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
+    # colorでLEDを光らせてwaitms間スリープ
     def colorWipe(self, strip, color, wait_ms=50):
         for i in range(strip.numPixels()):
             strip.setPixelColor(i, color)
             strip.show()
         time.sleep(wait_ms / 1000.0)
 
+    # 初期化
     def __init__(self):
         threading.Thread.__init__(self)
         self.strip = PixelStrip(self.LED_COUNT, self.LED_PIN, self.LED_FREQ_HZ,
@@ -29,13 +31,20 @@ class LedTape(threading.Thread):
         self.strip.begin()
         self.is_playing = False
         self.section = None
+        self.beat = None
+        self.elapsed_time = 0
 
     def run(self):
         while True:
             if self.is_playing:
-                self.colorWipe(self.strip, Color(255, 0, 0))  # Red wipe
-                self.colorWipe(self.strip, Color(0, 255, 0))  # Blue wipe
-                self.colorWipe(self.strip, Color(0, 0, 255))  # Green wipe
+                key = self.section["key"]
+                # tempo = self.section["tempo"]
+                # t = self.section["start"] - (self.elapsed_time / 1000)
+                # print('t: ', t)
+                # print(self.beat)
+                # print(self.beat["start"] - self.elapsed_time / 1000)
+                self.colorWipe(self.strip, Color(
+                    key % 4, (key + 1) % 4, (key + 2) % 4))
             else:
                 self.cleanup()
 
@@ -43,22 +52,12 @@ class LedTape(threading.Thread):
         self.colorWipe(self.strip, Color(0, 0, 0))
 
 
-class FullcolorLED():
-    def __init__(self, led_pins):
-        pass
-
-    def start(self):
-        pass
-
-    def run(self):
-        pass
-
-
+# SpotifyAPIから再生中の曲や、曲の詳細情報を取得する
 class Spotify(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.client = spotify_client.SpotifyClient()
-        self.updated = False
+        self.client = spotify_client.SpotifyClient()  # spotipyクライアントを用意
+        self.updated = False  # 以下取得した情報を保持するフィールド
         self.bpm = 120
         self.beats = None
         self.is_playing = False
@@ -68,11 +67,13 @@ class Spotify(threading.Thread):
         self.progress_ms = 0
         self.sections = None
 
+    # これが無限に回る
     def run(self):
         while True:
-            self.fetch()
-            time.sleep(self.interval)
+            self.fetch()  # fetchして
+            time.sleep(self.interval)  # interval
 
+    # フィールドに新しい状態をセットする
     def set_state(self, new_state):
         self.timestamp = int(new_state["timestamp"])
         self.is_playing = new_state["is_playing"]
@@ -81,25 +82,27 @@ class Spotify(threading.Thread):
         print("******************** state updated ********************")
         self.updated = True
 
+    # fetch関数　APIを叩いて状態を取得
     def fetch(self):
         new_state = self.client.currently_playing()
 
-        if not new_state:
+        if not new_state:  # Spotifyで再生していなかったらreturn
             return
 
-        # トラックの変更を拾う
+        # 曲の変更を拾う
         if not self.track_id == new_state["item"]["id"]:
             print("---------- track_changed ----------")
             print("track name:", new_state["item"]["name"])
-            self.load_beats(new_state["item"]["id"])
+            self.load_beats(new_state["item"]["id"])  # 詳細情報を取得する
+            self.set_state(new_state)  # 新しい状態をセット
 
-        self.set_state(new_state)
-
+    # analysisを叩いて詳細情報を取得する
+    # 曲変更時に呼ばれる
     def load_beats(self, track_id):
         print("loading beats ...")
         analysis_object = self.client.track_analysis(track_id)
-        self.beats = analysis_object["beats"]
-        self.sections = analysis_object["sections"]
+        self.beats = analysis_object["beats"]  # beatと
+        self.sections = analysis_object["sections"]  # sectionをセット
         print("completed")
 
 
@@ -117,12 +120,15 @@ class Motor(threading.Thread):
                 continue
             self.motor.rotate_with_step(1, self.reverse)
 
+# 各モジュールを管理するクラス
+# このクラスを通して情報のやり取りをする
+
 
 class Prototype2():
     def __init__(self, spotify, motor, led):
-        self.spotify = spotify
-        self.motor = motor
-        self.led = led
+        self.spotify = spotify  # spotify
+        self.motor = motor  # moter
+        self.led = led  # led 各クラスを保持しておく
         self.is_playing = False
         self.beats = None
         self.elapsed_time = 0.0
@@ -147,19 +153,20 @@ class Prototype2():
                 return i
         return -1
 
+    # これが呼ばれる 各モジュールを起動する
     def run(self):
         self.spotify.start()
         self.motor.start()
         self.led.start()
         while True:
-            if self.spotify.updated:
+            if self.spotify.updated:  # 曲が更新されたらspofifyモジュールが持つ情報を親クラスのフィールドに入れる
                 self.is_playing = self.spotify.is_playing
                 self.timestamp = self.spotify.timestamp
                 self.motor.is_playing = self.is_playing
                 self.beats = self.spotify.beats
                 self.progress_ms = self.spotify.progress_ms
                 self.spotify.updated = False
-                self.elapsed_time = 0
+                self.elapsed_time = 0  # 経過時間はゼロになる
                 self.base_time = int(time.time() * 1000)
                 self.led.is_playing = self.is_playing
                 self.sections = self.spotify.sections
@@ -168,12 +175,16 @@ class Prototype2():
                 continue
 
             self.elapsed_time = int(time.time() * 1000) - self.base_time
+
+            self.led.elapsed_time = self.elapsed_time
+
             beat_index = self._get_latest_beat_index(
                 self.elapsed_time + self.progress_ms)
 
             if self.last_beat_index != beat_index:
                 self.motor.reverse = not self.motor.reverse
                 self.last_beat_index = beat_index
+                self.led.beat = self.beats[beat_index]
 
             section_index = self.get_latest_section_index(
                 self.elapsed_time + self.progress_ms
