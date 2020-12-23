@@ -17,11 +17,21 @@ class LedTape(threading.Thread):
     LED_CHANNEL = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
     # colorでLEDを光らせてwaitms間スリープ
-    def colorWipe(self, strip, color, wait_sec=0):
-        for i in range(strip.numPixels()):
-            strip.setPixelColor(i, color)
+    def colorWipe(self, strip, color, wait_sec=10):
+        for i in range(15):
+            start = time.time()
+            for j in range(strip.numPixels()):
+                strip.setPixelColor(j, Color(i, 0, 0))
             strip.show()
-        time.sleep(wait_sec)
+            elapsed_time = time.time() - start
+            time.sleep((wait_sec / 30) - elapsed_time)
+        for i in range(15):
+            start = time.time()
+            for j in range(strip.numPixels()):
+                strip.setPixelColor(j, Color(14 - i, 0, 0))
+            strip.show()
+            elapsed_time = time.time() - start
+            time.sleep((wait_sec / 30) - elapsed_time)
 
     # 初期化
 
@@ -42,9 +52,9 @@ class LedTape(threading.Thread):
                 # 0が入るとダメ
                 tempo = self.section["tempo"] if self.section["tempo"] != 0 else 130
                 self.colorWipe(self.strip, Color(
-                    key % 4, (key + 1) % 4, (key + 2) % 4), 60/tempo - 0.1)
-                self.cleanup()
-                time.sleep(0.1)
+                    key % 4, (key + 1) % 4, (key + 2) % 4), 60/tempo)
+                # self.cleanup()
+                # time.sleep(0.1)
             else:
                 self.cleanup()
 
