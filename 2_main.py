@@ -16,19 +16,36 @@ class LedTape(threading.Thread):
     LED_INVERT = False
     LED_CHANNEL = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
+    def rainbow(self, key, step):
+        k = key % 7
+        if k == 0:
+            return Color(step, 0, 0)
+        elif k == 1:
+            return Color(0, step, 0)
+        elif k == 2:
+            return Color(0, 0, step)
+        elif k == 3:
+            return Color(step, step, 0)
+        elif k == 4:
+            return Color(step, 0, step)
+        elif k == 5:
+            return Color(0, step, step)
+        elif k == 6:
+            return Color(step, step, step)
+
     # colorでLEDを光らせてwaitms間スリープ
-    def colorWipe(self, strip, color, wait_sec=10):
+    def colorWipe(self, strip, key, wait_sec=10):
         for i in range(15):
             start = time.time()
             for j in range(strip.numPixels()):
-                strip.setPixelColor(j, Color(i, 0, 0))
+                strip.setPixelColor(j, self.rainbow(key, i))
             strip.show()
             elapsed_time = time.time() - start
             time.sleep((wait_sec / 30) - elapsed_time)
         for i in range(15):
             start = time.time()
             for j in range(strip.numPixels()):
-                strip.setPixelColor(j, Color(14 - i, 0, 0))
+                strip.setPixelColor(j, self.rainbow(key, 14-i))
             strip.show()
             elapsed_time = time.time() - start
             time.sleep((wait_sec / 30) - elapsed_time)
@@ -51,10 +68,7 @@ class LedTape(threading.Thread):
                 key = self.section["key"]
                 # 0が入るとダメ
                 tempo = self.section["tempo"] if self.section["tempo"] != 0 else 130
-                self.colorWipe(self.strip, Color(
-                    key % 4, (key + 1) % 4, (key + 2) % 4), 60/tempo)
-                # self.cleanup()
-                # time.sleep(0.1)
+                self.colorWipe(self.strip, key, 60/tempo)
             else:
                 self.cleanup()
 
