@@ -5,7 +5,7 @@ import random
 import threading
 import time
 from rpi_ws281x import PixelStrip, Color
-
+import os
 
 class LedTape(threading.Thread):
     LED_COUNT = 8        # Number of LED pixels.
@@ -78,9 +78,9 @@ class LedTape(threading.Thread):
 
 # SpotifyAPIから再生中の曲や、曲の詳細情報を取得する
 class Spotify(threading.Thread):
-    def __init__(self):
+    def __init__(self, cache_path=None):
         threading.Thread.__init__(self)
-        self.client = spotify_client.SpotifyClient()  # spotipyクライアントを用意
+        self.client = spotify_client.SpotifyClient(cache_path=cache_path)  # spotipyクライアントを用意
         self.updated = False  # 以下取得した情報を保持するフィールド
         self.bpm = 120
         self.beats = None
@@ -109,7 +109,6 @@ class Spotify(threading.Thread):
     # fetch関数　APIを叩いて状態を取得
     def fetch(self):
         new_state = self.client.currently_playing()
-
         if not new_state:  # Spotifyで再生していなかったらreturn
             return
 
@@ -118,7 +117,7 @@ class Spotify(threading.Thread):
             print("---------- track_changed ----------")
             print("track name:", new_state["item"]["name"])
             self.load_beats(new_state["item"]["id"])  # 詳細情報を取得する
-            self.set_state(new_state)  # 新しい状態をセット
+        self.set_state(new_state)  # 新しい状態をセット
 
     # analysisを叩いて詳細情報を取得する
     # 曲変更時に呼ばれる
@@ -137,12 +136,58 @@ class Motor(threading.Thread):
         self.reverse = False
         self.step = 1
         self.is_playing = False
+        self.step_count = {
+            True: 0,
+            False: 0
+        }
+        self.prev_reverse = False
+        self.base_step = 0
+        self.reverse_count = 0
+        self._reverse = False
+        self.lack = False
+
+    def on_track_change(self):
+        self.reverse = False
+        self.step_count = {
+            True: 0,
+            False: 0
+        }
+        self.prev_reverse = False
+        self.base_step = 0
+        self.reverse_count = 0
+        self._reverse = self.reverse
 
     def run(self):
         while True:
             if not self.is_playing:
                 continue
-            self.motor.rotate_with_step(1, self.reverse)
+            self._reverse = self.reverse
+
+            # 基準を決まっていない時、基準を決める
+            if self.base_step == 0:
+                if not self.prev_reverse == self._reverse:
+                    self.reverse_count += 1
+                    print(self.reverse_count)
+                    if self.reverse_count == 3:
+                        self.base_step = self.step_count[self.prev_reverse]
+                        print("self.base_step:", self.base_step)
+                        self.step_count[self.reverse] = 0
+            else:
+                if not self.prev_reverse == self._reverse:
+                    if self.step_count[not self.reverse] == self.step_count[self.reverse]:
+                        self.step_count[not self.reverse] = self.base_step
+                    self.step_count[self.reverse] = 0
+
+                # 前回のステップ数を超える or 基準を超えていたらスキップ
+                if self.step_count[self._reverse] >= self.step_count[not self._reverse] or self.step_count[self._reverse] >= self.base_step:
+                    # print("step count over", self.step_count)
+                    continue
+
+            # print("reverse:", self.prev_reverse, self._reverse)
+            self.step_count[self._reverse] += 1
+            self.motor.rotate_with_step(self.step, self._reverse)
+            print(self.step_count)
+            self.prev_reverse = self._reverse
 
 # 各モジュールを管理するクラス
 # このクラスを通して情報のやり取りをする
@@ -161,6 +206,7 @@ class Prototype2():
         self.base_time = int(time.time() * 1000)
         self.sections = None
         self.last_section_index = 0
+        self.track_id = ""
 
     def _get_latest_beat_index(self, progress_ms):
         sec = progress_ms / 1000
@@ -194,6 +240,10 @@ class Prototype2():
                 self.base_time = int(time.time() * 1000)
                 self.led.is_playing = self.is_playing
                 self.sections = self.spotify.sections
+                # 音楽の変更を拾う
+                if not self.track_id == self.spotify.track_id:
+                    self.motor.on_track_change()
+                    self.track_id = self.spotify.track_id
 
             if not self.is_playing:
                 continue
@@ -203,7 +253,8 @@ class Prototype2():
             self.led.elapsed_time = self.elapsed_time
 
             beat_index = self._get_latest_beat_index(
-                self.elapsed_time + self.progress_ms)
+                self.elapsed_time + self.progress_ms
+            )
 
             if self.last_beat_index != beat_index:
                 self.motor.reverse = not self.motor.reverse
@@ -218,7 +269,7 @@ class Prototype2():
                 self.led.section = self.sections[section_index]
                 self.last_section_index = section_index
 
-            time.sleep(0.1)
+            time.sleep(0.05)
 
 
 if __name__ == '__main__':
@@ -226,8 +277,10 @@ if __name__ == '__main__':
     motor_pins = [26, 19, 22, 27]
 
     motor = Motor(motor_pins)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    spotify = Spotify(cache_path=os.path.join(script_dir, "SetupServer/.cache"))
+    # spotify = Spotify(cache_path="/home/argon/Project/Prototype/SetupServer/.cache")
     led = LedTape()
-    spotify = Spotify()
     prototype2 = Prototype2(spotify, motor, led)
     prototype2.run()
 
