@@ -4,3 +4,6 @@
 [submodule "SteppingMotor"]
 	path = SteppingMotor
 	url = https://github.com/argonism/SteppingMotor.git
+[submodule "SetupServer"]
+	path = SetupServer
+	url = https://github.com/music-lightup-cojt2020/SetupServer.git
