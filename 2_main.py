@@ -124,7 +124,7 @@ class Spotify(threading.Thread):
         self.is_playing = new_state["is_playing"]
         self.track_id = new_state["item"]["id"]
         self.progress_ms = int(new_state["progress_ms"])
-        print("******************** state updated ********************")
+        if DEBUG: print("******************** state updated ********************")
         self.updated = True
 
     # fetch関数　APIを叩いて状態を取得
@@ -135,19 +135,19 @@ class Spotify(threading.Thread):
 
         # 曲の変更を拾う
         if not self.track_id == new_state["item"]["id"]:
-            print("---------- track_changed ----------")
-            print("track name:", new_state["item"]["name"])
+            if DEBUG: print("---------- track_changed ----------")
+            if DEBUG: print("track name:", new_state["item"]["name"])
             self.load_beats(new_state["item"]["id"])  # 詳細情報を取得する
         self.set_state(new_state)  # 新しい状態をセット
 
     # analysisを叩いて詳細情報を取得する
     # 曲変更時に呼ばれる
     def load_beats(self, track_id):
-        print("loading beats ...")
+        if DEBUG: print("loading beats ...")
         analysis_object = self.client.track_analysis(track_id)
         self.beats = analysis_object["beats"]  # beatと
         self.sections = analysis_object["sections"]  # sectionをセット
-        print("completed")
+        if DEBUG: print("completed")
 
 
 class Motor(threading.Thread):
@@ -188,10 +188,10 @@ class Motor(threading.Thread):
             if self.base_step == 0:
                 if not self.prev_reverse == self._reverse:
                     self.reverse_count += 1
-                    print(self.reverse_count)
+                    if DEBUG: print(self.reverse_count)
                     if self.reverse_count == 3:
                         self.base_step = self.step_count[self.prev_reverse]
-                        print("self.base_step:", self.base_step)
+                        if DEBUG: print("self.base_step:", self.base_step)
                         self.step_count[self.reverse] = 0
             else:
                 if not self.prev_reverse == self._reverse:
@@ -207,7 +207,7 @@ class Motor(threading.Thread):
             # print("reverse:", self.prev_reverse, self._reverse)
             self.step_count[self._reverse] += 1
             self.motor.rotate_with_step(self.step, self._reverse)
-            print(self.step_count)
+            if DEBUG: print(self.step_count)
             self.prev_reverse = self._reverse
 
 # 各モジュールを管理するクラス
@@ -286,7 +286,7 @@ class Prototype2():
                 self.elapsed_time + self.progress_ms
             )
             if self.last_section_index != section_index:
-                print(self.sections[section_index])
+                if DEBUG: print(self.sections[section_index])
                 self.led.section = self.sections[section_index]
                 self.last_section_index = section_index
 
@@ -294,6 +294,7 @@ class Prototype2():
 
 
 if __name__ == '__main__':
+    DEBUG = False
     # led_pins = []
     motor_pins = [26, 19, 22, 27]
 
