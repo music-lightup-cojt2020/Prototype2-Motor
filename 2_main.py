@@ -33,22 +33,32 @@ class LedTape(threading.Thread):
         elif k == 6:
             return Color(step, step, step)
 
+    def gradation(self, key, step, j):
+        k = key % 7
+        color_offset =  (j + self.pattern_loop_count) % len(self.rainbow_colors)
+        return (self.rainbow_colors[color_offset] + self.rainbow_colors[k]) * step
+
     # colorでLEDを光らせてwaitms間スリープ
     def colorWipe(self, strip, key, wait_sec=10):
         for i in range(15):
             start = time.time()
             for j in range(strip.numPixels()):
-                strip.setPixelColor(j, self.rainbow(key, i))
+                # strip.setPixelColor(j, self.rainbow(key, i))
+                strip.setPixelColor(j, self.gradation(key, i*4, j))
             strip.show()
             elapsed_time = time.time() - start
-            time.sleep((wait_sec / 30) - elapsed_time)
+            sleep_time = (wait_sec / 30) - elapsed_time
+            time.sleep(sleep_time if sleep_time >= 0 else 0)
         for i in range(15):
             start = time.time()
             for j in range(strip.numPixels()):
-                strip.setPixelColor(j, self.rainbow(key, 14-i))
+                # strip.setPixelColor(j, self.rainbow(key, 14-i))
+                strip.setPixelColor(j, self.gradation(key, (14-i)*4, j))
             strip.show()
             elapsed_time = time.time() - start
-            time.sleep((wait_sec / 30) - elapsed_time)
+            sleep_time = (wait_sec / 30) - elapsed_time
+            time.sleep(sleep_time if sleep_time >= 0 else 0)
+        self.pattern_loop_count += 1
 
     # 初期化
 
@@ -56,6 +66,17 @@ class LedTape(threading.Thread):
         threading.Thread.__init__(self)
         self.strip = PixelStrip(self.LED_COUNT, self.LED_PIN, self.LED_FREQ_HZ,
                                 self.LED_DMA, self.LED_INVERT, self.LED_BRIGHTNESS, self.LED_CHANNEL)
+        self.pattern_loop_count = 0
+        self.rainbow_colors = [
+            Color(2, 0, 0),
+            Color(2, 1, 0),
+            Color(2, 2, 0),
+            Color(0, 2, 0),
+            Color(0, 2, 2),
+            Color(0, 0, 2),
+            Color(1, 0, 1),
+            Color(2, 0, 1)
+        ]
         self.strip.begin()
         self.is_playing = False
         self.section = None
