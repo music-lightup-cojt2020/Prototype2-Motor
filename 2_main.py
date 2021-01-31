@@ -190,11 +190,12 @@ class Motor(threading.Thread):
                     self.reverse_count += 1
                     if DEBUG: print(self.reverse_count)
                     if self.reverse_count == 3:
-                        self.base_step = self.step_count[self.prev_reverse]
+                        self.base_step = int(self.step_count[self.prev_reverse] * 2 / 3)
                         if DEBUG: print("self.base_step:", self.base_step)
                         self.step_count[self.reverse] = 0
             else:
                 if not self.prev_reverse == self._reverse:
+                    if DEBUG: print(self.step_count)
                     if self.step_count[not self.reverse] == self.step_count[self.reverse]:
                         self.step_count[not self.reverse] = self.base_step
                     self.step_count[self.reverse] = 0
@@ -207,7 +208,6 @@ class Motor(threading.Thread):
             # print("reverse:", self.prev_reverse, self._reverse)
             self.step_count[self._reverse] += 1
             self.motor.rotate_with_step(self.step, self._reverse)
-            if DEBUG: print(self.step_count)
             self.prev_reverse = self._reverse
 
 # 各モジュールを管理するクラス
@@ -294,9 +294,9 @@ class Prototype2():
 
 
 if __name__ == '__main__':
-    DEBUG = False
+    DEBUG = True
     # led_pins = []
-    motor_pins = [26, 19, 22, 27]
+    motor_pins = [17, 23, 27, 22]
 
     motor = Motor(motor_pins)
     script_dir = os.path.dirname(os.path.abspath(__file__))
